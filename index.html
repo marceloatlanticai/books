@@ -898,27 +898,46 @@ addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'){document.getElementById('bWork').click()}
 });
 
-/* ---------- boot ---------- */
+/* ---------- boot ----------
+   Instrumentado: qualquer falha aqui costumava deixar a tela de carregamento
+   para sempre, sem dizer o motivo. Agora o erro aparece na própria tela. */
+const bootEl=document.getElementById('boot');
+function bootFail(msg){
+  bootEl.style.cssText+=';white-space:pre-wrap;padding:8vw;text-align:center;'
+    +'letter-spacing:.04em;text-transform:none;line-height:1.7;color:#b4553f;font-size:12px';
+  bootEl.textContent='falhou ao iniciar\n\n'+msg;
+}
+addEventListener('error',e=>bootFail((e.message||'erro')+'\n'+(e.filename||'')+':'+(e.lineno||'')));
+
+function boot(){
+  try{
+    if(isTouch){
+      // trava o grão: celular não aguenta 18 mil drawImage por quadro
+      grainIx=1; DSC=GRAINS[1].sc; MULT=GRAINS[1].mult; AB=GRAINS[1].ab;
+      bGrain.textContent=GRAINS[1].l;
+      lensIx=2;                          // lente de parágrafo
+      bLens.textContent=LENS[2].name;
+      hintEl.textContent='toque para ler';
+      bMode.style.display='none';
+    }
+    resize();
+    requestAnimationFrame(frame);
+    bootEl.style.opacity=0; setTimeout(()=>bootEl.remove(),600);
+  }catch(err){
+    bootFail((err&&err.message||String(err))+'\n\n'+(err&&err.stack||'').split('\n').slice(0,3).join('\n'));
+  }
+}
+
+let booted=false;
+const once=()=>{ if(!booted){ booted=true; boot(); } };
+// se alguma imagem nunca disparar load nem error, arranca mesmo assim
+setTimeout(once, 8000);
 Promise.all(Object.keys(SRC).map(k=>new Promise(res=>{
   const i=new Image();
   i.onload=()=>{IMGS[k]=i;res()};
   i.onerror=()=>res();
   i.src=SRC[k];
-}))).then(()=>{
-  const b=document.getElementById('boot');
-  if(isTouch){
-    // trava o grão: celular não aguenta 18 mil drawImage por quadro
-    grainIx=1; DSC=GRAINS[1].sc; MULT=GRAINS[1].mult; AB=GRAINS[1].ab;
-    bGrain.textContent=GRAINS[1].l;
-    lensIx=2;                          // lente de parágrafo
-    bLens.textContent=LENS[2].name;
-    hintEl.textContent='toque para ler';
-    document.getElementById('bMode').style.display='none';
-  }
-  resize();
-  requestAnimationFrame(frame);
-  b.style.opacity=0; setTimeout(()=>b.remove(),600);
-});
+}))).then(once).catch(err=>bootFail('carregando imagens: '+(err&&err.message||err)));
 </script>
 </body>
 </html>
